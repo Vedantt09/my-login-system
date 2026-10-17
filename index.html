@@ -14,7 +14,6 @@
       min-height: 100vh;
       margin: 0;
     }
-
     .card {
       background: white;
       padding: 30px;
@@ -22,7 +21,6 @@
       width: min(320px, 80%);
       box-shadow: 0 8px 30px #0001;
     }
-
     input, button {
       box-sizing: border-box;
       width: 100%;
@@ -30,35 +28,112 @@
       margin-top: 12px;
       border-radius: 8px;
     }
-
-    input {
-      border: 1px solid #ccc;
-    }
-
+    input { border: 1px solid #ccc; }
     button {
       border: 0;
       background: #4f46e5;
       color: white;
       cursor: pointer;
     }
-
-    #message {
-      overflow-wrap: anywhere;
-    }
+    #message { overflow-wrap: anywhere; }
   </style>
 </head>
 <body>
   <main class="card">
     <h2>Create an account</h2>
-    <p>Register to get started.</p>
-
-    <form>
-      <input type="email" placeholder="Email address" required>
-      <input type="password" placeholder="Password" required minlength="6">
+    <form id="signup-form">
+      <input id="email" type="email" placeholder="Email address" required>
+      <input id="password" type="password" placeholder="Password (6+ characters)" minlength="6" required>
       <button type="submit">Sign up</button>
     </form>
 
-    <p id="message">Your login system is coming soon!</p>
+    <h2>Log in</h2>
+    <form id="login-form">
+      <input id="login-email" type="email" placeholder="Email address" required>
+      <input id="login-password" type="password" placeholder="Password" required>
+      <button type="submit">Log in</button>
+    </form>
+
+    <button id="verify-button" hidden>Send verification email</button>
+    <button id="logout-button" hidden>Log out</button>
+    <p id="message" role="status">Create an account to get started.</p>
   </main>
+
+  <script type="module">
+    import { initializeApp } from
+      "https://www.gstatic.com/firebasejs/12.4.0/firebase-app.js";
+    import {
+      getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword,
+      sendEmailVerification, signOut, onAuthStateChanged, reload
+    } from
+      "https://www.gstatic.com/firebasejs/12.4.0/firebase-auth.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyB_6VFXWGY1RM_svyiOd9yEW2t5WKSfIQQ",
+      authDomain: "my-login-system-f61aa.firebaseapp.com",
+      projectId: "my-login-system-f61aa",
+      appId: "1:690463115845:web:a5fc8bc445f6202078712c"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const message = document.getElementById("message");
+    const signupForm = document.getElementById("signup-form");
+    const loginForm = document.getElementById("login-form");
+    const verifyButton = document.getElementById("verify-button");
+    const logoutButton = document.getElementById("logout-button");
+
+    signupForm.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      try {
+        const email = document.getElementById("email").value;
+        const password = document.getElementById("password").value;
+        const result = await createUserWithEmailAndPassword(auth, email, password);
+        await sendEmailVerification(result.user);
+        message.textContent = "Account created! Check your inbox for a verification link.";
+      } catch (error) {
+        message.textContent = error.message;
+      }
+    });
+
+    loginForm.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      try {
+        const email = document.getElementById("login-email").value;
+        const password = document.getElementById("login-password").value;
+        const result = await signInWithEmailAndPassword(auth, email, password);
+        await reload(result.user);
+        message.textContent = result.user.emailVerified
+          ? "Login successful! Your email is verified."
+          : "Your email is not verified yet. Send a verification email and check your inbox.";
+      } catch (error) {
+        message.textContent = error.message;
+      }
+    });
+
+    verifyButton.addEventListener("click", async () => {
+      try {
+        await reload(auth.currentUser);
+        if (auth.currentUser.emailVerified) {
+          message.textContent = "Your email is verified!";
+        } else {
+          await sendEmailVerification(auth.currentUser);
+          message.textContent = "Verification email sent. Check your inbox.";
+        }
+      } catch (error) {
+        message.textContent = error.message;
+      }
+    });
+
+    logoutButton.addEventListener("click", async () => {
+      await signOut(auth);
+      message.textContent = "You have logged out.";
+    });
+
+    onAuthStateChanged(auth, (user) => {
+      verifyButton.hidden = !user || user.emailVerified;
+      logoutButton.hidden = !user;
+    });
+  </script>
 </body>
 </html>
